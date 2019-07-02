@@ -1,3 +1,5 @@
+import pygraphviz as pgv
+
 testTransitionFunction2 = {"a" : {0 : tuple("abcde"), 1 : tuple("de")},
 "b" : {0: "c", 1: "e"},
 "c" : {0: None, 1: "b"},
@@ -26,6 +28,28 @@ class finiteAutomata:
 				print(self.transitionFunction[state][letter], end = "\t")
 			print("")
 
+class DFA(finiteAutomata):
+	def createPSGraph(self, filename):
+		G = pgv.AGraph(strict=False,directed=True)
+
+		for state in self.states:
+			G.add_node(str(state))
+			if state in self.finalStates:
+				finalNode = G.get_node(state)
+				finalNode.attr['shape']='square'
+
+		for state in self.states:
+			for letter in self.alphabet:
+				if self.transitionFunction[state][letter] != None:
+					#if type(self.transitionFunction[state][letter]) == tuple:
+					#	for indivState in self.transitionFunction[state][letter]:
+					#		G.add_edge(str(state),str(indivState))
+					#else:
+					G.add_edge(str(state),str(self.transitionFunction[state][letter]))
+					currentEdge = G.get_edge(str(state),str(self.transitionFunction[state][letter]))
+					currentEdge.attr['label']=str(letter)
+		G.draw(filename, prog='circo')
+
 	def checkPossible(self, string):
 		currentStates = [self.initState]
 		for letter in string:
@@ -40,14 +64,55 @@ class finiteAutomata:
 
 		return False
 
+class NFA(finiteAutomata):
+	def createPSGraph(self, filename):
+		G = pgv.AGraph(strict=False,directed=True)
+
+		for state in self.states:
+			G.add_node(str(state))
+			if state in self.finalStates:
+				finalNode = G.get_node(state)
+				finalNode.attr['shape']='square'
+
+		for state in self.states:
+			for letter in self.alphabet:
+				if self.transitionFunction[state][letter] != None:
+					if type(self.transitionFunction[state][letter]) == tuple:
+						for indivState in self.transitionFunction[state][letter]:
+							G.add_edge(str(state),str(indivState))
+							currentEdge = G.get_edge(str(state),str(indivState))
+							currentEdge.attr['label']=str(letter)
+					else:
+						G.add_edge(str(state),str(self.transitionFunction[state][letter]))
+						currentEdge = G.get_edge(str(state),str(self.transitionFunction[state][letter]))
+						currentEdge.attr['label']=str(letter)
+					
+		G.draw(filename, prog='circo')
+
+	def checkPossible(self, string):
+		currentStates = [self.initState]
+		for letter in string:
+			currentState = currentStates.pop()
+			if type(currentState) == tuple:
+				for indivState in currentState:
+					currentStates.append(indivState)
+			else:
+				currentStates.append(indivState)
+
+		for state in currentStates:
+			if state in self.finalStates:
+				return True
+
+		return False
+
 def NFAToDFA(NFA):
 	newStates = []
 	newTransitionFunction = NFA.transitionFunction
-	newStates.extend(NFA.states)
+	newStates.append(NFA.initState)
 	newFinalStates = set()
 	newFinalStates = newFinalStates | NFA.finalStates
 
-	for state in newStates:			
+	for state in newStates:
 		if state not in newTransitionFunction.keys():
 			newTransitionFunction[state] = dict()
 			for indivState in state:
@@ -86,7 +151,7 @@ def NFAToDFA(NFA):
 	print(newTransitionFunction)
 	print(newFinalStates)"""
 
-	return finiteAutomata(newStates, NFA.alphabet, newTransitionFunction, NFA.initState, newFinalStates)
+	return DFA(newStates, NFA.alphabet, newTransitionFunction, NFA.initState, newFinalStates)
 
 
 if __name__ == "__main__":
@@ -94,7 +159,8 @@ if __name__ == "__main__":
 	testAlphabet = [0,1]
 	testInitState = "a"
 	testFinalStates = ["e"]
-	testAutomata = finiteAutomata(testStates, testAlphabet, testTransitionFunction2, testInitState, testFinalStates)
-	#testAutomata.printTransitionFunction()
+	testAutomata = NFA(testStates, testAlphabet, testTransitionFunction2, testInitState, testFinalStates)
+	testAutomata.createPSGraph('testNFAGraph.ps')
 	#print(testAutomata.checkPossible([1,0]))
-	NFAToDFA(testAutomata).printTransitionFunction()
+	testAutomata2 = NFAToDFA(testAutomata)
+	testAutomata2.createPSGraph('testDFAGraph.ps')
